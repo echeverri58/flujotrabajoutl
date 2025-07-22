@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TeamFlow - Gestión de Tareas</title>
+    
+    <!-- Frameworks y Librerías vía CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- Estilos Personalizados -->
+    <style>
+        /* --- Paleta de Colores y Variables --- */
+        :root {
+            --color-bg: #f4f7f9;
+            --color-surface: #ffffff;
+            --color-primary: #4a90e2;
+            --color-primary-dark: #357abd;
+            --color-text: #333333;
+            --color-text-secondary: #6c757d;
+            --color-border: #dee2e6;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 8px rgba(0,0,0,0.07);
+            
+            --status-pending: #e74c3c; /* Rojo */
+            --status-progress: #f1c40f; /* Amarillo */
+            --status-completed: #2ecc71; /* Verde */
+            --status-suspended: #95a5a6; /* Gris */
+
+            --font-primary: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+            --font-headings: 'Montserrat', 'Segoe UI', sans-serif;
+        }
+
+        /* --- Estilos Globales y Tipografía --- */
+        body {
+            font-family: var(--font-primary);
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            transition: background-color 0.3s;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: var(--font-headings);
+            font-weight: 600;
+        }
+
+        /* --- Estructura Principal de la App --- */
+        #app-container {
+            display: none; /* Oculto hasta el login */
+        }
+
+        .main-content {
+            padding-top: 80px; /* Espacio para el navbar fijo */
+            transition: all 0.3s ease-in-out;
+        }
+
+        /* --- Pantalla de Login --- */
+        #login-view {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+        }
+        .login-card {
+            max-width: 400px;
+            width: 100%;
+            padding: 2.5rem;
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .login-card .form-control {
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+        }
+        .login-card .btn {
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        /* --- Barra de Navegación --- */
+        .navbar {
+            background-color: var(--color-surface);
+            box-shadow: var(--shadow-md);
+            padding: 1rem 1.5rem;
+        }
+        .navbar-brand {
+            font-family: var(--font-headings);
+            font-weight: 700;
+            color: var(--color-primary);
+        }
+        .navbar-brand i {
+            margin-right: 8px;
+        }
+        .nav-link {
+            font-weight: 500;
+            color: var(--color-text-secondary);
+            transition: color 0.2s;
+        }
+        .nav-link.active, .nav-link:hover {
+            color: var(--color-primary);
+        }
+        .user-profile-nav img {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+
+        /* --- Tablero Kanban --- */
+        #kanban-board {
+            display: flex;
+            gap: 1.5rem;
+            overflow-x: auto;
+            padding: 1rem;
+            min-height: calc(100vh - 150px);
+        }
+        .kanban-column {
+            flex: 1 1 320px;
+            min-width: 320px;
+            background-color: var(--color-bg);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+        .kanban-column-header {
+            display: flex;
+            align-items: center;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+            border-bottom: 3px solid;
+        }
+        .kanban-column-header h5 {
+            margin-bottom: 0;
+            font-weight: 700;
+        }
+        .kanban-column-header .badge {
+            margin-left: auto;
+            font-size: 0.9rem;
+        }
+        .kanban-tasks {
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* --- Tarjetas de Tarea --- */
+        .task-card {
+            background-color: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-left-width: 5px;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: var(--shadow-sm);
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+        .task-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-md);
+        }
+        .task-card-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .task-card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: var(--color-text-secondary);
+        }
+        .task-assignees img {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid var(--color-surface);
+            margin-left: -10px;
+        }
+        .task-assignees img:first-child {
+            margin-left: 0;
+        }
+        .task-teams .badge {
+            font-size: 0.75rem;
+            margin-right: 4px;
+        }
+
+        /* --- Colores de Estado --- */
+        .status-pending { border-color: var(--status-pending); }
+        .status-progress { border-color: var(--status-progress); }
+        .status-completed { border-color: var(--status-completed); }
+        .status-suspended { border-color: var(--status-suspended); }
+        
+        .header-pending { border-bottom-color: var(--status-pending); }
+        .header-progress { border-bottom-color: var(--status-progress); }
+        .header-completed { border-bottom-color: var(--status-completed); }
+        .header-suspended { border-bottom-color: var(--status-suspended); }
+
+        /* --- Modales --- */
+        .modal-content {
+            border-radius: 15px;
+            border: none;
+        }
+        .modal-header {
+            background-color: var(--color-primary);
+            color: white;
+            border-top-left-radius: 15px;
+            border-top-right-radius: 15px;
+        }
+        .modal-header .btn-close {
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+
+        /* --- Filtros y Botones de Acción --- */
+        .action-bar {
+            background-color: var(--color-surface);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--color-border);
+        }
+        .action-bar .btn {
+            margin-right: 0.5rem;
+        }
+
+        /* --- Vistas de Perfil y Admin --- */
+        .profile-card, .admin-card {
+            background-color: var(--color-surface);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: var(--shadow-md);
+        }
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 0 auto 1rem;
+            display: block;
+            border: 4px solid var(--color-primary);
+        }
+
+        /* --- Responsividad --- */
+        @media (max-width: 768px) {
+            .main-content {
+                padding-top: 70px;
+            }
+            #kanban-board {
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+            .kanban-column {
+                min-width: unset;
+                width: 100%;
+            }
+            .action-bar {
+                flex-direction: column;
+                align-items: stretch !important;
+            }
+            .action-bar .btn-group, .action-bar .btn {
+                width: 100%;
+                margin-bottom: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Vista de Inicio de Sesión -->
+    <div id="login-view">
+        <div class="card login-card">
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <h2 class="card-title"><i class="fas fa-stream"></i> TeamFlow</h2>
+                    <p class="text-muted">Inicia sesión para continuar</p>
+                </div>
+                <form id="login-form">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Usuario</label>
+                        <input type="text" class="form-control" id="username" value="admin" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Contraseña</label>
+                        <input type="password" class="form-control" id="password" value="12345" required>
+                    </div>
+                    <div id="login-error" class="text-danger mb-3 d-none">Usuario o contraseña incorrectos.</div>
+                    <button type="submit" class="btn btn-primary w-100">Ingresar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenedor Principal de la Aplicación -->
+    <div id="app-container">
+        <!-- Barra de Navegación -->
+        <nav class="navbar navbar-expand-lg fixed-top">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#"><i class="fas fa-stream"></i> TeamFlow</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#" data-view="kanban">Tablero</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-view="profile">Mi Perfil</a>
+                        </li>
+                        <li class="nav-item" id="admin-nav-link" style="display: none;">
+                            <a class="nav-link" href="#" data-view="admin">Admin</a>
+                        </li>
+                    </ul>
+                    <div class="d-flex align-items-center">
+                        <div class="user-profile-nav dropdown">
+                            <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                <img id="nav-user-avatar" src="" alt="User" class="me-2">
+                                <span id="nav-user-name" class="d-none d-lg-inline"></span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="#" data-view="profile">Mi Perfil</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="#" id="logout-btn">Cerrar Sesión</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Contenido Principal Dinámico -->
+        <main class="main-content container-fluid">
+            <!-- El contenido de las vistas se renderizará aquí -->
+        </main>
+    </div>
+
+    <!-- Modal para Crear/Editar Tarea -->
+    <div class="modal fade" id="taskModal" tabindex="-1" aria-labelledby="taskModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="taskModalLabel">Crear Nueva Tarea</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="task-form">
+                        <input type="hidden" id="taskId">
+                        <div class="mb-3">
+                            <label for="taskName" class="form-label">Nombre de la Tarea</label>
+                            <input type="text" class="form-control" id="taskName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="taskDescription" class="form-label">Descripción</label>
+                            <textarea class="form-control" id="taskDescription" rows="3"></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="taskAssignees" class="form-label">Responsables</label>
+                                <select id="taskAssignees" class="form-select" multiple required>
+                                    <!-- Opciones de usuarios se llenarán dinámicamente -->
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="taskTeams" class="form-label">Equipos</label>
+                                <select id="taskTeams" class="form-select" multiple required>
+                                    <!-- Opciones de equipos se llenarán dinámicamente -->
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="taskEndDate" class="form-label">Fecha de Finalización</label>
+                                <input type="date" class="form-control" id="taskEndDate" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="taskStatus" class="form-label">Estado</label>
+                                <select id="taskStatus" class="form-select" required>
+                                    <option value="pending">Pendiente</option>
+                                    <option value="progress">En Progreso</option>
+                                    <option value="completed">Completada</option>
+                                    <option value="suspended">Suspendida</option>
+                                </select>
+                            </div>
+                        </div>
+                         <div class="mb-3">
+                            <label for="taskAttachments" class="form-label">Adjuntos (URL)</label>
+                            <input type="text" class="form-control" id="taskAttachments" placeholder="http://ejemplo.com/archivo.pdf">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" id="deleteTaskBtn" style="display: none;">Eliminar</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="saveTaskBtn">Guardar Tarea</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        // --- SIMULACIÓN DE BASE DE DATOS ---
+        const AppData = {
+            users: [
+                { id: 1, name: 'Ana García', username: 'admin', password: '12345', role: 'admin', avatar: 'https://i.pravatar.cc/150?u=ana', teamIds: [1, 5] },
+                { id: 2, name: 'Carlos Ruiz', username: 'carlos', password: '12345', role: 'user', avatar: 'https://i.pravatar.cc/150?u=carlos', teamIds: [1, 2] },
+                { id: 3, name: 'Beatriz Solis', username: 'beatriz', password: '12345', role: 'user', avatar: 'https://i.pravatar.cc/150?u=beatriz', teamIds: [3] },
+                { id: 4, name: 'David Navarro', username: 'david', password: '12345', role: 'user', avatar: 'https://i.pravatar.cc/150?u=david', teamIds: [4, 6] },
+                { id: 5, name: 'Elena Morales', username: 'elena', password: '12345', role: 'user', avatar: 'https://i.pravatar.cc/150?u=elena', teamIds: [5] },
+                { id: 6, name: 'Fernando Díaz', username: 'fernando', password: '12345', role: 'user', avatar: 'https://i.pravatar.cc/150?u=fernando', teamIds: [2, 4] },
+            ],
+            teams: [
+                { id: 1, name: 'Jurídico', color: 'primary' },
+                { id: 2, name: 'Comunicaciones', color: 'info' },
+                { id: 3, name: 'Administrativo', color: 'secondary' },
+                { id: 4, name: 'Logístico', color: 'warning' },
+                { id: 5, name: 'Político', color: 'danger' },
+                { id: 6, name: 'Relaciones', color: 'success' },
+            ],
+            tasks: [
+                { id: 1, name: 'Revisar contrato de proveedores', description: 'Verificar cláusulas de entrega y penalizaciones.', status: 'pending', assigneeIds: [1, 2], teamIds: [1], endDate: '2025-08-15', attachments: 'http://example.com/contrato.pdf' },
+                { id: 2, name: 'Diseñar campaña de lanzamiento', description: 'Crear los materiales gráficos y copys para redes sociales.', status: 'progress', assigneeIds: [6], teamIds: [2], endDate: '2025-08-10', attachments: '' },
+                { id: 3, name: 'Preparar informe financiero Q3', description: 'Consolidar los gastos e ingresos del último trimestre.', status: 'completed', assigneeIds: [3], teamIds: [3], endDate: '2025-07-30', attachments: '' },
+                { id: 4, name: 'Coordinar logística de evento', description: 'Reservar lugar, catering y transporte para el evento anual.', status: 'progress', assigneeIds: [4], teamIds: [4], endDate: '2025-09-01', attachments: '' },
+                { id: 5, name: 'Análisis de estrategia política', description: 'Evaluar el impacto de las últimas encuestas.', status: 'suspended', assigneeIds: [1, 5], teamIds: [5], endDate: '2025-08-20', attachments: '' },
+                { id: 6, name: 'Plan de comunicación interna', description: 'Definir los mensajes clave para el equipo.', status: 'pending', assigneeIds: [2, 6], teamIds: [2], endDate: '2025-08-05', attachments: '' },
+                { id: 7, name: 'Gestión de agenda con stakeholders', description: 'Agendar reuniones con los principales socios.', status: 'completed', assigneeIds: [4], teamIds: [6], endDate: '2025-07-28', attachments: '' },
+                { id: 8, name: 'Revisión de cumplimiento normativo', description: 'Asegurar que todos los procesos cumplen con la ley vigente.', status: 'progress', assigneeIds: [1], teamIds: [1, 3], endDate: '2025-09-10', attachments: '' },
+            ]
+        };
+
+        // --- ESTADO DE LA APLICACIÓN ---
+        const AppState = {
+            currentUser: null,
+            currentView: 'kanban',
+            currentFilter: 'all',
+            taskModal: null,
+        };
+
+        // --- SELECTORES DEL DOM ---
+        const loginView = document.getElementById('login-view');
+        const appContainer = document.getElementById('app-container');
+        const mainContent = document.querySelector('.main-content');
+        const loginForm = document.getElementById('login-form');
+        const loginError = document.getElementById('login-error');
+        const logoutBtn = document.getElementById('logout-btn');
+        const navLinks = document.querySelectorAll('.nav-link');
+        const taskModalEl = document.getElementById('taskModal');
+        const taskForm = document.getElementById('task-form');
+        const saveTaskBtn = document.getElementById('saveTaskBtn');
+        const deleteTaskBtn = document.getElementById('deleteTaskBtn');
+
+        // --- INICIALIZACIÓN ---
+        function init() {
+            loginForm.addEventListener('submit', handleLogin);
+            logoutBtn.addEventListener('click', handleLogout);
+            navLinks.forEach(link => link.addEventListener('click', handleNavClick));
+            saveTaskBtn.addEventListener('click', handleSaveTask);
+            deleteTaskBtn.addEventListener('click', handleDeleteTask);
+            
+            AppState.taskModal = new bootstrap.Modal(taskModalEl);
+        }
+
+        // --- AUTENTICACIÓN ---
+        function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            const user = AppData.users.find(u => u.username === username && u.password === password);
+
+            if (user) {
+                AppState.currentUser = user;
+                loginView.style.display = 'none';
+                appContainer.style.display = 'block';
+                loginError.classList.add('d-none');
+                setupUIForUser();
+                render();
+            } else {
+                loginError.classList.remove('d-none');
+            }
+        }
+
+        function handleLogout() {
+            AppState.currentUser = null;
+            loginView.style.display = 'flex';
+            appContainer.style.display = 'none';
+            document.getElementById('username').value = 'admin';
+            document.getElementById('password').value = '12345';
+        }
+
+        function setupUIForUser() {
+            document.getElementById('nav-user-name').textContent = AppState.currentUser.name;
+            document.getElementById('nav-user-avatar').src = AppState.currentUser.avatar;
+            
+            const adminLink = document.getElementById('admin-nav-link');
+            if (AppState.currentUser.role === 'admin') {
+                adminLink.style.display = 'block';
+            } else {
+                adminLink.style.display = 'none';
+            }
+        }
+
+        // --- NAVEGACIÓN Y RENDERIZADO ---
+        function handleNavClick(e) {
+            e.preventDefault();
+            const view = e.target.dataset.view;
+            if (view) {
+                AppState.currentView = view;
+                navLinks.forEach(link => link.classList.remove('active'));
+                e.target.classList.add('active');
+                render();
+            }
+        }
+
+        function render() {
+            mainContent.innerHTML = '';
+            switch (AppState.currentView) {
+                case 'kanban':
+                    renderKanbanView();
+                    break;
+                case 'profile':
+                    renderProfileView();
+                    break;
+                case 'admin':
+                    if (AppState.currentUser.role === 'admin') {
+                        renderAdminView();
+                    } else {
+                        renderKanbanView(); // Fallback for non-admins
+                    }
+                    break;
+                default:
+                    renderKanbanView();
+            }
+        }
+
+        // --- VISTA KANBAN ---
+        function renderKanbanView() {
+            const actionBarHTML = `
+                <div class="action-bar d-flex justify-content-between align-items-center flex-wrap">
+                    <div class="btn-group" role="group" aria-label="Filtros de equipo">
+                        <button type="button" class="btn btn-outline-primary filter-btn ${AppState.currentFilter === 'all' ? 'active' : ''}" data-filter="all">Todos</button>
+                        ${AppData.teams.map(team => `
+                            <button type="button" class="btn btn-outline-primary filter-btn ${AppState.currentFilter == team.id ? 'active' : ''}" data-filter="${team.id}">${team.name}</button>
+                        `).join('')}
+                         <button type="button" class="btn btn-outline-primary filter-btn ${AppState.currentFilter === 'joint' ? 'active' : ''}" data-filter="joint">Tareas Conjuntas</button>
+                    </div>
+                    <div class="d-flex mt-2 mt-md-0">
+                        <button class="btn btn-primary" id="addTaskBtn"><i class="fas fa-plus me-2"></i>Crear Tarea</button>
+                        <button class="btn btn-outline-secondary ms-2" id="screenshotBtn"><i class="fas fa-camera me-2"></i>Capturar</button>
+                    </div>
+                </div>
+            `;
+            
+            const statuses = [
+                { id: 'pending', title: 'Pendiente', colorClass: 'header-pending' },
+                { id: 'progress', title: 'En Progreso', colorClass: 'header-progress' },
+                { id: 'completed', title: 'Completada', colorClass: 'header-completed' },
+                { id: 'suspended', title: 'Suspendida', colorClass: 'header-suspended' },
+            ];
+
+            let filteredTasks = AppData.tasks;
+            if (AppState.currentFilter !== 'all') {
+                if (AppState.currentFilter === 'joint') {
+                    filteredTasks = AppData.tasks.filter(task => task.teamIds.length > 1);
+                } else {
+                    const filterId = parseInt(AppState.currentFilter);
+                    filteredTasks = AppData.tasks.filter(task => task.teamIds.includes(filterId));
+                }
+            }
+
+            const kanbanHTML = `
+                <div id="kanban-container">
+                    ${actionBarHTML}
+                    <div id="kanban-board">
+                        ${statuses.map(status => {
+                            const tasksInColumn = filteredTasks.filter(task => task.status === status.id);
+                            return `
+                                <div class="kanban-column">
+                                    <div class="kanban-column-header ${status.colorClass}">
+                                        <h5>${status.title}</h5>
+                                        <span class="badge bg-secondary rounded-pill">${tasksInColumn.length}</span>
+                                    </div>
+                                    <div class="kanban-tasks" id="column-${status.id}">
+                                        ${tasksInColumn.map(renderTaskCard).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+            mainContent.innerHTML = kanbanHTML;
+            addKanbanEventListeners();
+        }
+
+        function renderTaskCard(task) {
+            const assignees = task.assigneeIds.map(id => AppData.users.find(u => u.id === id));
+            const teams = task.teamIds.map(id => AppData.teams.find(t => t.id === id));
+            
+            return `
+                <div class="task-card status-${task.status}" data-task-id="${task.id}">
+                    <div class="task-card-title">${task.name}</div>
+                    <div class="task-teams mb-2">
+                        ${teams.map(team => `<span class="badge bg-${team.color}">${team.name}</span>`).join('')}
+                    </div>
+                    <p class="task-card-description small text-muted">${task.description}</p>
+                    <div class="task-card-footer">
+                        <div class="task-assignees">
+                            ${assignees.map(user => user ? `<img src="${user.avatar}" alt="${user.name}" title="${user.name}">` : '').join('')}
+                        </div>
+                        <div class="task-due-date">
+                            <i class="far fa-calendar-alt me-1"></i>
+                            <span>${task.endDate}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function addKanbanEventListeners() {
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.addEventListener('click', (e) => {
+                AppState.currentFilter = e.target.dataset.filter;
+                renderKanbanView();
+            }));
+            document.getElementById('addTaskBtn').addEventListener('click', () => openTaskModal(null));
+            document.querySelectorAll('.task-card').forEach(card => card.addEventListener('click', (e) => {
+                const taskId = e.currentTarget.dataset.taskId;
+                openTaskModal(taskId);
+            }));
+            document.getElementById('screenshotBtn').addEventListener('click', handleScreenshot);
+        }
+
+        // --- GESTIÓN DE TAREAS (MODAL Y CRUD) ---
+        function openTaskModal(taskId) {
+            taskForm.reset();
+            populateModalSelects();
+            if (taskId) {
+                const task = AppData.tasks.find(t => t.id == taskId);
+                document.getElementById('taskModalLabel').textContent = 'Editar Tarea';
+                document.getElementById('taskId').value = task.id;
+                document.getElementById('taskName').value = task.name;
+                document.getElementById('taskDescription').value = task.description;
+                document.getElementById('taskEndDate').value = task.endDate;
+                document.getElementById('taskStatus').value = task.status;
+                document.getElementById('taskAttachments').value = task.attachments || '';
+                
+                // Seleccionar assignees y teams
+                Array.from(document.getElementById('taskAssignees').options).forEach(option => {
+                    option.selected = task.assigneeIds.includes(parseInt(option.value));
+                });
+                Array.from(document.getElementById('taskTeams').options).forEach(option => {
+                    option.selected = task.teamIds.includes(parseInt(option.value));
+                });
+
+                deleteTaskBtn.style.display = 'inline-block';
+            } else {
+                document.getElementById('taskModalLabel').textContent = 'Crear Nueva Tarea';
+                document.getElementById('taskId').value = '';
+                deleteTaskBtn.style.display = 'none';
+            }
+            AppState.taskModal.show();
+        }
+
+        function populateModalSelects() {
+            const assigneesSelect = document.getElementById('taskAssignees');
+            const teamsSelect = document.getElementById('taskTeams');
+            assigneesSelect.innerHTML = AppData.users.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+            teamsSelect.innerHTML = AppData.teams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+        }
+
+        function handleSaveTask() {
+            const id = document.getElementById('taskId').value;
+            const selectedAssignees = Array.from(document.getElementById('taskAssignees').selectedOptions).map(o => parseInt(o.value));
+            const selectedTeams = Array.from(document.getElementById('taskTeams').selectedOptions).map(o => parseInt(o.value));
+
+            const taskData = {
+                name: document.getElementById('taskName').value,
+                description: document.getElementById('taskDescription').value,
+                endDate: document.getElementById('taskEndDate').value,
+                status: document.getElementById('taskStatus').value,
+                assigneeIds: selectedAssignees,
+                teamIds: selectedTeams,
+                attachments: document.getElementById('taskAttachments').value,
+            };
+
+            if (id) { // Editar
+                const taskIndex = AppData.tasks.findIndex(t => t.id == id);
+                AppData.tasks[taskIndex] = { ...AppData.tasks[taskIndex], ...taskData };
+            } else { // Crear
+                taskData.id = Date.now(); // ID único simple
+                AppData.tasks.push(taskData);
+            }
+            
+            AppState.taskModal.hide();
+            render();
+        }
+
+        function handleDeleteTask() {
+            const id = document.getElementById('taskId').value;
+            if (confirm('¿Estás seguro de que quieres eliminar esta tarea?')) {
+                AppData.tasks = AppData.tasks.filter(t => t.id != id);
+                AppState.taskModal.hide();
+                render();
+            }
+        }
+
+        // --- CAPTURA DE PANTALLA ---
+        function handleScreenshot() {
+            const kanbanBoard = document.getElementById('kanban-container');
+            html2canvas(kanbanBoard, {
+                backgroundColor: getComputedStyle(document.body).getPropertyValue('--color-bg'),
+                useCORS: true,
+                scale: 1.5
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'teamflow-kanban.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+
+        // --- VISTA DE PERFIL ---
+        function renderProfileView() {
+            const user = AppState.currentUser;
+            const userTeams = user.teamIds.map(id => AppData.teams.find(t => t.id === id).name).join(', ');
+            const userTasks = AppData.tasks.filter(task => task.assigneeIds.includes(user.id));
+
+            const profileHTML = `
+                <div class="container py-5">
+                    <div class="row justify-content-center">
+                        <div class="col-lg-8">
+                            <div class="profile-card text-center">
+                                <img src="${user.avatar}" alt="${user.name}" class="profile-avatar">
+                                <h2>${user.name}</h2>
+                                <p class="text-muted text-capitalize">${user.role}</p>
+                                <p><strong>Equipos:</strong> ${userTeams}</p>
+                                <hr>
+                                <h4>Cambiar Contraseña (UI)</h4>
+                                <div class="row justify-content-center">
+                                    <div class="col-md-8">
+                                        <form>
+                                            <div class="form-floating mb-3">
+                                                <input type="password" class="form-control" id="currentPassword" placeholder="Contraseña actual">
+                                                <label for="currentPassword">Contraseña actual</label>
+                                            </div>
+                                            <div class="form-floating mb-3">
+                                                <input type="password" class="form-control" id="newPassword" placeholder="Nueva contraseña">
+                                                <label for="newPassword">Nueva contraseña</label>
+                                            </div>
+                                            <button type="button" class="btn btn-primary">Actualizar Contraseña</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="admin-card mt-4">
+                                <h3>Mis Tareas Asignadas (${userTasks.length})</h3>
+                                <ul class="list-group list-group-flush">
+                                    ${userTasks.map(task => `<li class="list-group-item d-flex justify-content-between align-items-center">
+                                        ${task.name} <span class="badge bg-${task.status === 'completed' ? 'success' : 'warning'} rounded-pill">${task.status}</span>
+                                    </li>`).join('') || '<li class="list-group-item">No tienes tareas asignadas.</li>'}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            mainContent.innerHTML = profileHTML;
+        }
+
+        // --- VISTA DE ADMINISTRACIÓN ---
+        function renderAdminView() {
+            const adminHTML = `
+                <div class="container py-5">
+                    <h2>Panel de Administración</h2>
+                    <p class="text-muted">Gestión de usuarios, equipos y monitorización del sistema.</p>
+                    
+                    <div class="row g-4 mt-3">
+                        <!-- Gestión de Usuarios -->
+                        <div class="col-lg-6">
+                            <div class="admin-card">
+                                <h4><i class="fas fa-users me-2"></i>Gestión de Usuarios</h4>
+                                <button class="btn btn-sm btn-primary mb-3">Crear Usuario</button>
+                                <ul class="list-group">
+                                    ${AppData.users.map(u => `
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <img src="${u.avatar}" width="30" height="30" class="rounded-circle me-2">
+                                                ${u.name} <small class="text-muted">(${u.role})</small>
+                                            </div>
+                                            <div>
+                                                <button class="btn btn-sm btn-outline-secondary"><i class="fas fa-pencil-alt"></i></button>
+                                                <button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                                            </div>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Gestión de Equipos -->
+                        <div class="col-lg-6">
+                            <div class="admin-card">
+                                <h4><i class="fas fa-sitemap me-2"></i>Gestión de Equipos</h4>
+                                <button class="btn btn-sm btn-primary mb-3">Crear Equipo</button>
+                                <ul class="list-group">
+                                    ${AppData.teams.map(t => `
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            ${t.name}
+                                            <div>
+                                                <button class="btn btn-sm btn-outline-secondary"><i class="fas fa-pencil-alt"></i></button>
+                                                <button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                                            </div>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Monitorización -->
+                        <div class="col-12">
+                            <div class="admin-card">
+                                <h4><i class="fas fa-chart-line me-2"></i>Monitorización General</h4>
+                                <div class="row text-center">
+                                    <div class="col-md-3">
+                                        <h5>${AppData.tasks.length}</h5>
+                                        <p class="text-muted">Tareas Totales</p>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <h5>${AppData.tasks.filter(t => t.status === 'completed').length}</h5>
+                                        <p class="text-muted">Completadas</p>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <h5>${AppData.users.length}</h5>
+                                        <p class="text-muted">Usuarios Activos</p>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <h5>${AppData.teams.length}</h5>
+                                        <p class="text-muted">Equipos</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            mainContent.innerHTML = adminHTML;
+            // Nota: Los botones de "Crear/Editar/Eliminar" en el panel de admin son solo UI y no tienen funcionalidad en este prototipo.
+        }
+
+        // Iniciar la aplicación
+        init();
+    });
+    </script>
+
+</body>
+</html>
